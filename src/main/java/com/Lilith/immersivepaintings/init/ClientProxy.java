@@ -1,4 +1,4 @@
-package com.Lilith.mymodid;
+package com.Lilith.immersivepaintings.init;
 
 public class ClientProxy extends CommonProxy {
 

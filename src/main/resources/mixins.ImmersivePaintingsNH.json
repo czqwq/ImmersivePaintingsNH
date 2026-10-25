@@ -1,0 +1,10 @@
+{
+  "required": true,
+  "minVersion": "0.8.3-GTNH",
+  "package": "com.Lilith.immersivepaintings.mixin",
+  "refmap": "mixins.ImmersivePaintingsNH.refmap.json",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [],
+  "client": []
+}

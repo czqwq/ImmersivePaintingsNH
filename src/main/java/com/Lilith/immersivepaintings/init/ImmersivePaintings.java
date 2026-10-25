@@ -1,4 +1,4 @@
-package com.Lilith.mymodid;
+package com.Lilith.immersivepaintings.init;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -10,14 +10,20 @@ import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 
-@Mod(modid = MyMod.MODID, version = Tags.VERSION, name = "MyMod", acceptedMinecraftVersions = "[1.7.10]")
-public class MyMod {
+@Mod(
+    modid = ImmersivePaintings.MODID,
+    version = Tags.VERSION,
+    name = "immersivepaintings",
+    acceptedMinecraftVersions = "[1.7.10]")
+public class ImmersivePaintings {
 
-    public static final String MODID = "mymodid";
+    public static final String MODID = "immersivepaintings";
     public static final Logger LOG = LogManager.getLogger(MODID);
 
-    @SidedProxy(clientSide = "com.Lilith.mymodid.ClientProxy", serverSide = "com.Lilith.mymodid.CommonProxy")
-    public static com.Lilith.mymodid.CommonProxy proxy;
+    @SidedProxy(
+        clientSide = "com.Lilith.immersivepaintings.init.ClientProxy",
+        serverSide = "com.Lilith.immersivepaintings.init.CommonProxy")
+    public static CommonProxy proxy;
 
     @Mod.EventHandler
     // preInit "Run before anything else. Read your config, create blocks, items, etc, and register them with the
