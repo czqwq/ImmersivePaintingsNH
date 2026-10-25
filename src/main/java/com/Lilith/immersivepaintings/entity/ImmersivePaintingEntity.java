@@ -341,9 +341,22 @@ public class ImmersivePaintingEntity extends Entity {
         return true;
     }
 
+    /**
+     * 1.7.10 also uses this for mouse picking and attack targeting, so paintings must always be
+     * clickable. The collision box is controlled by {@link #getBoundingBox()} below instead.
+     */
     @Override
     public boolean canBeCollidedWith() {
-        return Configs.COMMON.paintingsHaveCollision;
+        return true;
+    }
+
+    /**
+     * The world movement code adds every entity bounding box to the collision list, so returning
+     * null is the 1.7.10 way of disabling physical collision for non-solid entities.
+     */
+    @Override
+    public net.minecraft.util.AxisAlignedBB getBoundingBox() {
+        return Configs.COMMON.paintingsHaveCollision ? super.getBoundingBox() : null;
     }
 
     @Override
