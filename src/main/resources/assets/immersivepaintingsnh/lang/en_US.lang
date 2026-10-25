@@ -151,3 +151,4 @@ config.immersivepaintingsnh.client.eighthResolutionThreshold=Eighth Resolution T
 config.immersivepaintingsnh.client.eighthResolutionThreshold.desc=Threshold for resolution of eighth of the image size
 config.immersivepaintingsnh.client.thumbResolutionThreshold=Thumbnail Resolution Threshold
 config.immersivepaintingsnh.client.thumbResolutionThreshold.desc=Threshold for resolution of thumbnail size
+immersivepaintingsnh.command.error.no_server=No server available

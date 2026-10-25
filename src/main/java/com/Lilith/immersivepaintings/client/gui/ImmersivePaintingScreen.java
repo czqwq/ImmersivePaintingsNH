@@ -902,12 +902,16 @@ public class ImmersivePaintingScreen extends GuiScreen {
                 EnumSet<Painting.Flag> flags = settings.getFlags();
                 if (entity.isGraffiti()) flags.add(Painting.Flag.GRAFFITI);
 
+                String paintingName = nameField != null && !nameField.getText()
+                    .isEmpty() ? nameField.getText() : currentImageName;
+                if (paintingName == null || paintingName.isEmpty()) paintingName = "painting";
+
                 LazyNetworkManager.sendToServer(
                     new PaintingRegisterPayload(
                         settings.width,
                         settings.height,
                         settings.resolution,
-                        currentImageName,
+                        paintingName,
                         flags));
 
                 setPage(Page.LOADING);

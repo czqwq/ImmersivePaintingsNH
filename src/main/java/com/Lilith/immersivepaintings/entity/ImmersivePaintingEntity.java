@@ -38,14 +38,15 @@ public class ImmersivePaintingEntity extends Entity {
     private static final byte EVENT_WOBBLE = 22;
 
     // DataWatcher ids, identical on both sides.
-    private static final int DATA_MOTIVE = 0;
-    private static final int DATA_FRAME = 1;
-    private static final int DATA_MATERIAL = 2;
-    private static final int DATA_WIDTH = 3;
-    private static final int DATA_HEIGHT = 4;
-    private static final int DATA_DEPTH = 5;
-    private static final int DATA_DIRECTION = 6;
-    private static final int DATA_ROTATION = 7;
+    // Entity itself uses id 0 for the shared entity flags, so the painting data starts at 1.
+    private static final int DATA_MOTIVE = 1;
+    private static final int DATA_FRAME = 2;
+    private static final int DATA_MATERIAL = 3;
+    private static final int DATA_WIDTH = 4;
+    private static final int DATA_HEIGHT = 5;
+    private static final int DATA_DEPTH = 6;
+    private static final int DATA_DIRECTION = 7;
+    private static final int DATA_ROTATION = 8;
 
     private static final String NONE = Main.DOMAIN + ":none";
 
@@ -269,6 +270,12 @@ public class ImmersivePaintingEntity extends Entity {
             }
         }
 
+        if (dataId == DATA_DIRECTION) {
+            hangingDirection = dataWatcher.getWatchableObjectByte(DATA_DIRECTION);
+        } else if (dataId == DATA_ROTATION) {
+            rotation = dataWatcher.getWatchableObjectInt(DATA_ROTATION);
+        }
+
         if (dataId == DATA_DIRECTION || dataId == DATA_ROTATION) {
             updateRotationFromDirection();
         }
@@ -399,6 +406,8 @@ public class ImmersivePaintingEntity extends Entity {
         tileZ = nbt.getInteger("TileZ");
         setDepthOffset(nbt.getInteger("DepthOffset"));
         setMotiveString(nbt.getString("Motive"));
+        dataWatcher.updateObject(DATA_DIRECTION, (byte) hangingDirection);
+        dataWatcher.updateObject(DATA_ROTATION, rotation);
         updateRotationFromDirection();
         recalculateBoundingBox();
     }

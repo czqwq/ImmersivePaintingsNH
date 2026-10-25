@@ -151,3 +151,4 @@ config.immersivepaintingsnh.client.eighthResolutionThreshold=第八个分辨率�
 config.immersivepaintingsnh.client.eighthResolutionThreshold.desc=图像尺寸第八分辨率阈值
 config.immersivepaintingsnh.client.thumbResolutionThreshold=缩略图分辨率阈值
 config.immersivepaintingsnh.client.thumbResolutionThreshold.desc=缩略图大小分辨率阈值
+immersivepaintingsnh.command.error.no_server=服务器不可用
