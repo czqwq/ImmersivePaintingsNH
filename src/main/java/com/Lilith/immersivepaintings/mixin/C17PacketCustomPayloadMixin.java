@@ -33,7 +33,12 @@ public abstract class C17PacketCustomPayloadMixin {
     @Shadow
     private byte[] field_149561_c;
 
-    /** Reads the Forge var-short length, compatible with the vanilla short encoding below 32k. */
+    /**
+     * Reads the Forge var-short length, compatible with the vanilla short encoding below 32k.
+     *
+     * @author czqwq
+     * @reason Support payloads larger than the vanilla 32k limit, matching Forge's S3F encoding.
+     */
     @Overwrite
     public void readPacketData(PacketBuffer data) throws IOException {
         this.field_149562_a = data.readStringFromBuffer(20);
@@ -45,7 +50,12 @@ public abstract class C17PacketCustomPayloadMixin {
         }
     }
 
-    /** Writes the Forge var-short length, compatible with the vanilla short encoding below 32k. */
+    /**
+     * Writes the Forge var-short length, compatible with the vanilla short encoding below 32k.
+     *
+     * @author czqwq
+     * @reason Support payloads larger than the vanilla 32k limit, matching Forge's S3F encoding.
+     */
     @Overwrite
     public void writePacketData(PacketBuffer data) throws IOException {
         data.writeStringToBuffer(this.field_149562_a);
