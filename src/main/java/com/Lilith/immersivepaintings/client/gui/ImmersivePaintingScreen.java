@@ -102,9 +102,6 @@ public class ImmersivePaintingScreen extends GuiScreen {
     private PixelatorSettings settings;
     private BufferedImage pixelatedImage;
 
-    private ResourceLocation currentImageTexture;
-    private int currentImageTextureWidth;
-    private int currentImageTextureHeight;
     private ResourceLocation pixelatedTexture;
     private int pixelatedTextureWidth;
     private int pixelatedTextureHeight;
@@ -116,6 +113,7 @@ public class ImmersivePaintingScreen extends GuiScreen {
     private ResourceLocation selectedPainting;
     private Page editReturnPage;
     private String error;
+    private boolean warningMessage;
     private boolean shouldReProcess;
     private static volatile boolean shouldUpload;
 
@@ -311,8 +309,14 @@ public class ImmersivePaintingScreen extends GuiScreen {
                 break;
         }
 
-        if (error != null) {
-            drawCenteredString(fontRendererObj, error, width / 2, height / 2, 0xFFFF0000);
+        if (error != null && !error.isEmpty() && page == Page.CREATE) {
+            // Keep the warning readable, draw it above the editor instead of over the preview.
+            int errorY = 6;
+            int color = warningMessage ? 0xFFFFAA00 : 0xFFFF0000;
+            for (String line : wrap(error, Math.min(width - 20, 400))) {
+                drawCenteredString(fontRendererObj, line, width / 2, errorY, color);
+                errorY += 10;
+            }
         }
 
         tooltips.clear();
@@ -369,9 +373,15 @@ public class ImmersivePaintingScreen extends GuiScreen {
         }
 
         ResourceLocation identifier = new ResourceLocation(Main.DOMAIN, "gui/temp_" + tempTextureCounter++);
+        registerDynamicImage(identifier, image);
+        return identifier;
+    }
+
+    private void registerDynamicImage(ResourceLocation identifier, BufferedImage image) {
+        mc.getTextureManager()
+            .deleteTexture(identifier);
         mc.getTextureManager()
             .loadTexture(identifier, new DynamicTexture(image));
-        return identifier;
     }
 
     // ------------------------------------------------------------------
@@ -499,8 +509,6 @@ public class ImmersivePaintingScreen extends GuiScreen {
 
     @Override
     public void onGuiClosed() {
-        if (currentImageTexture != null) mc.getTextureManager()
-            .deleteTexture(currentImageTexture);
         if (pixelatedTexture != null) mc.getTextureManager()
             .deleteTexture(pixelatedTexture);
         service.shutdownNow();
@@ -524,15 +532,27 @@ public class ImmersivePaintingScreen extends GuiScreen {
 
     public void clearError() {
         error = null;
+        warningMessage = false;
     }
 
     public void setError(String text) {
         error = text;
+        warningMessage = false;
+    }
+
+    /** Non fatal hints, e.g. the transparency notice, are shown in orange instead of red. */
+    public void setWarning(String text) {
+        error = text;
+        warningMessage = true;
     }
 
     public void setPage(Page page) {
         Page previousPage = this.page;
         this.page = page;
+        if (page != Page.CREATE) {
+            // Warnings (transparency, register errors) only belong to the editor page.
+            clearError();
+        }
         if (page != previousPage && isPaintingSelectionPage(page)) {
             filteredResolution = page == Page.DATAPACKS ? 32 : 0;
         }
@@ -1241,7 +1261,10 @@ public class ImmersivePaintingScreen extends GuiScreen {
                 () -> {
                     BufferedImage image = widgetImage(identifier);
                     if (image != null) {
-                        currentImage = image;
+                        // Work on a copy so the raw thumbnail keeps its transparency.
+                        BufferedImage selected = copyImage(image);
+                        preprocessImage(selected);
+                        currentImage = selected;
                         currentImagePixelZoomCache = -1;
                         currentImageName = file.getName();
                         settings = new PixelatorSettings(currentImage, minResolution, maxResolution);
@@ -1256,9 +1279,12 @@ public class ImmersivePaintingScreen extends GuiScreen {
             tooltips.put(widget, Collections.singletonList(file.getName()));
 
             service.submit(() -> {
-                BufferedImage image = loadImage(file.getPath(), identifier);
+                BufferedImage image = readImage(file.getPath());
                 if (image != null) {
-                    mc.func_152344_a(() -> widget.update(identifier, image));
+                    mc.func_152344_a(() -> {
+                        registerDynamicImage(identifier, image);
+                        widget.update(identifier, image);
+                    });
                 }
             });
         }
@@ -1357,19 +1383,20 @@ public class ImmersivePaintingScreen extends GuiScreen {
 
     private boolean loadImage(String path) {
         path = normalizePath(path);
-        currentImage = loadImage(path, Main.locate("gui/temp"));
-        currentImagePixelZoomCache = -1;
-        if (currentImage != null) {
-            clearError();
-            currentImageName = toFileName(path);
-            settings = new PixelatorSettings(currentImage, minResolution, maxResolution);
-            setPage(Page.CREATE);
-            pixelateImage();
-            return true;
+        BufferedImage image = readImage(path);
+        if (image == null) {
+            setError(StatCollector.translateToLocal("immersivepaintingsnh.error.image_load_failed"));
+            return false;
         }
 
-        setError(StatCollector.translateToLocal("immersivepaintingsnh.error.image_load_failed"));
-        return false;
+        preprocessImage(image);
+        currentImage = image;
+        currentImagePixelZoomCache = -1;
+        currentImageName = toFileName(path);
+        settings = new PixelatorSettings(currentImage, minResolution, maxResolution);
+        setPage(Page.CREATE);
+        pixelateImage();
+        return true;
     }
 
     /** Accepts URLs and local paths, tolerating quotes, full width punctuation and backslashes. */
@@ -1406,23 +1433,22 @@ public class ImmersivePaintingScreen extends GuiScreen {
         return path.substring(lastSlash + 1, lastDot);
     }
 
-    private BufferedImage loadImage(String path, ResourceLocation identifier) {
+    /** Reads a local file or URL, without applying any painting specific processing. */
+    private BufferedImage readImage(String path) {
         try (InputStream stream = isRemote(path) ? openUrlStream(path) : new FileInputStream(resolveFile(path))) {
-            BufferedImage image = javax.imageio.ImageIO.read(stream);
-            if (image != null) {
-                preprocessImage(image);
-                mc.func_152344_a(() -> {
-                    currentImageTexture = uploadImage(image, currentImageTexture);
-                    currentImageTextureWidth = image.getWidth();
-                    currentImageTextureHeight = image.getHeight();
-                });
-                return image;
-            }
+            return javax.imageio.ImageIO.read(stream);
         } catch (IOException e) {
             Main.LOGGER.error("Failed to load image {}", path, e);
         }
 
         return null;
+    }
+
+    private static BufferedImage copyImage(BufferedImage source) {
+        BufferedImage copy = new BufferedImage(source.getWidth(), source.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        copy.getGraphics()
+            .drawImage(source, 0, 0, null);
+        return copy;
     }
 
     /** Relative paths are also looked up next to the game directory, e.g. "pictures/cat.png". */
@@ -1450,7 +1476,7 @@ public class ImmersivePaintingScreen extends GuiScreen {
                     int alpha = (color >> 24) & 255;
                     if (alpha != 255) {
                         if (error == null) {
-                            setError(StatCollector.translateToLocal("immersivepaintingsnh.gui.graffiti_warning"));
+                            setWarning(StatCollector.translateToLocal("immersivepaintingsnh.gui.graffiti_warning"));
                         }
                         color = (255 << 24) | (color & 0x00FFFFFF);
                         image.setRGB(x, y, color);
