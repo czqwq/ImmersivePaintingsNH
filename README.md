@@ -40,10 +40,12 @@ Minecraft **1.7.10** Forge 版的 [Immersive Paintings](https://github.com/Luke1
 | datapack 画作/画框 | 改为扫描 jar 内 `assets/immersivepaintingsnh/`，额外包放 `config/ImmersivePaintingsNH/` |
 | WebP 支持（TwelveMonkeys） | 不支持，仅 PNG/JPG |
 | Joy of Painting / Zetter 画作导入 | 不支持（1.7.10 无对应模组） |
-| 拖拽图片进 GUI | 改为输入框填写路径/URL |
+| 拖拽图片进 GUI | 改为输入框填写路径/URL（支持引号、全角标点、相对游戏目录路径） |
 | 发光墨囊 | 用萤石粉替代 |
 | 配方/进度 JSON | 配方改为代码注册；进度 json 只是配方解锁，跳过 |
+| 客户端→服务端 32k 包上限 | 内置 PacketFixer 式 mixin（`com.Lilith.immersivepaintings.mixin`），双向放宽到约 2MB |
 
 ## 许可
 
 原 mod 与移植代码均为 GPL-3.0；OBJ 解析器 `owens.oobjloader` 为 Unlicense。
+PacketFixer 式发包修复的思路参考自 [TonimatasDEV/PacketFixer](https://github.com/TonimatasDEV/PacketFixer)（LGPL-3.0）。

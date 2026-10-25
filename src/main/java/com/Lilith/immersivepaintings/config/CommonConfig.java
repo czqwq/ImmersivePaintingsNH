@@ -21,7 +21,7 @@ public class CommonConfig {
     public int maxPaintingResolution = 256;
 
     public int maxPacketsPerSecond = 20;
-    public int packetSize = 32 * 1024;
+    public int packetSize = 64 * 1024;
     public int packetSplitInterval = 250;
 
     public void load(Configuration configuration) {
@@ -71,8 +71,13 @@ public class CommonConfig {
             .getInt("maxPaintingResolution", advanced, maxPaintingResolution, 1, 256, "Maximum pixels per block.");
         maxPacketsPerSecond = configuration
             .getInt("maxPacketsPerSecond", advanced, maxPacketsPerSecond, 1, 1000, "Upload/download rate limit.");
-        packetSize = configuration
-            .getInt("packetSize", advanced, packetSize, 1024, 1024 * 1024, "Size of an image packet chunk in bytes.");
+        packetSize = configuration.getInt(
+            "packetSize",
+            advanced,
+            packetSize,
+            1024,
+            1024 * 1024,
+            "Size of an image packet chunk in bytes, larger chunks are safe because the payload limit is patched.");
         packetSplitInterval = configuration
             .getInt("packetSplitInterval", advanced, packetSplitInterval, 1, 10000, "Paintings per sync packet.");
     }

@@ -5,6 +5,11 @@
   "refmap": "mixins.ImmersivePaintingsNH.refmap.json",
   "target": "@env(DEFAULT)",
   "compatibilityLevel": "JAVA_8",
-  "mixins": [],
-  "client": []
+  "mixins": [
+    "C17PacketCustomPayloadMixin"
+  ],
+  "client": [
+    "C17PacketCustomPayloadClientMixin"
+  ],
+  "server": []
 }

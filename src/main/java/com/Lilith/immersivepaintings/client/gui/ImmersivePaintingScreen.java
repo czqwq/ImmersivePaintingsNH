@@ -1356,16 +1356,46 @@ public class ImmersivePaintingScreen extends GuiScreen {
     // ------------------------------------------------------------------
 
     private boolean loadImage(String path) {
+        path = normalizePath(path);
         currentImage = loadImage(path, Main.locate("gui/temp"));
         currentImagePixelZoomCache = -1;
         if (currentImage != null) {
+            clearError();
             currentImageName = toFileName(path);
             settings = new PixelatorSettings(currentImage, minResolution, maxResolution);
             setPage(Page.CREATE);
             pixelateImage();
             return true;
         }
+
+        setError(StatCollector.translateToLocal("immersivepaintingsnh.error.image_load_failed"));
         return false;
+    }
+
+    /** Accepts URLs and local paths, tolerating quotes, full width punctuation and backslashes. */
+    private static String normalizePath(String input) {
+        if (input == null) return "";
+
+        String path = input.trim();
+        if (path.length() >= 2
+            && (path.startsWith("\"") && path.endsWith("\"") || path.startsWith("'") && path.endsWith("'"))) {
+            path = path.substring(1, path.length() - 1)
+                .trim();
+        }
+
+        path = path.replace('\uFF1A', ':')
+            .replace('\uFF3C', '\\');
+        if (path.startsWith("file://")) path = path.substring("file://".length());
+        // Tolerate a stray leading slash in front of a windows drive, e.g. "/D:/image.png".
+        if (path.length() > 2 && path.charAt(0) == '/' && Character.isLetter(path.charAt(1)) && path.charAt(2) == ':') {
+            path = path.substring(1);
+        }
+
+        return path;
+    }
+
+    private static boolean isRemote(String path) {
+        return path.startsWith("http://") || path.startsWith("https://");
     }
 
     private String toFileName(String path) {
@@ -1377,8 +1407,7 @@ public class ImmersivePaintingScreen extends GuiScreen {
     }
 
     private BufferedImage loadImage(String path, ResourceLocation identifier) {
-        try (InputStream stream = path.startsWith("http://") || path.startsWith("https://") ? openUrlStream(path)
-            : new FileInputStream(path)) {
+        try (InputStream stream = isRemote(path) ? openUrlStream(path) : new FileInputStream(resolveFile(path))) {
             BufferedImage image = javax.imageio.ImageIO.read(stream);
             if (image != null) {
                 preprocessImage(image);
@@ -1394,6 +1423,16 @@ public class ImmersivePaintingScreen extends GuiScreen {
         }
 
         return null;
+    }
+
+    /** Relative paths are also looked up next to the game directory, e.g. "pictures/cat.png". */
+    private static File resolveFile(String path) {
+        File file = new File(path);
+        if (!file.isAbsolute() && !file.exists()) {
+            File gameDirFile = new File(Minecraft.getMinecraft().mcDataDir, path);
+            if (gameDirFile.exists()) return gameDirFile;
+        }
+        return file;
     }
 
     private static InputStream openUrlStream(String path) throws IOException {

@@ -117,9 +117,30 @@ tasks.withType(xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar).configureEach {
 stub），Java 8~21 运行时均可加载，且 Forge 能正常发现 mod。代价是新 JVM 上失去原生 class
 快路径（功能等价）。运行环境需要 **GTNHLib ≥ 0.11**（stub 提供方，GTNH 整合包自带）。
 
+## 网络包大小修复（PacketFixer 移植）
+
+1.7.10 的 `C17PacketCustomPayload`（客户端 → 服务端）把 payload 硬编码限制在 32k，上传图片分片
+（默认 64KB）会触发 `Payload may not be larger than 32k` 并断开连接。服务端 → 客户端方向 Forge
+早已用 var-short 编码放宽到约 2MB（`S3FPacketCustomPayload`）。
+
+参考 [PacketFixer](https://github.com/TonimatasDEV/PacketFixer) 的 mixin 思路，在
+`com.Lilith.immersivepaintings.mixin` 包中实现：
+
+| Mixin | 作用 |
+| --- | --- |
+| `C17PacketCustomPayloadMixin`（common） | 把读/写长度字段换成 FML 的 `ByteBufUtils.readVarShort/writeVarShort`；<32768 时与原生 short 编码完全一致，其他 mod/未打补丁的端不受影响 |
+| `C17PacketCustomPayloadClientMixin`（client） | 把 `@SideOnly(CLIENT)` 构造函数里 `32767` 的上限常量改成 Forge 同款 `0x1FFF9A`（约 2MB） |
+
+因此 `packetSize` 配置可以保持上游默认的 64KB。双向限制对照：客户端→服务端约 2MB（本 mixin），
+服务端→客户端约 2MB（Forge 原生），Netty 帧上限仍是 3 字节 varint（2^21-1）。
+
+另外图片路径输入做了归一化：去掉首尾引号、全角冒号/反斜杠、`file://` 前缀、Windows 盘符前的多余
+`/`；相对路径会再尝试相对游戏目录解析。
+
 ## 验证
 
-- `./gradlew build` 通过（含 Spotless、Checkstyle、JVM Downgrader、reobf）。
-- 产物 `build/libs/ImmersivePaintingsNH-*.jar` 已确认：无 `META-INF/versions/*`、类文件 major version 52。
-- 按约定本轮只要求编译验证，未做客户端/服务端运行时冒烟测试；渲染与 GUI 为 1.7.10 手写实现，
-  首次实机运行需重点回归：放置朝向、天花板/地板旋转、GUI 页签、图片上传链路。
+- `./gradlew build` 通过（含 Spotless、Checkstyle、JVM Downgrader、Mixin refmap/reobf）。
+- 产物 `build/libs/ImmersivePaintingsNH-*.jar` 已确认：无 `META-INF/versions/*`、类文件 major version 52、
+  含 `mixins.ImmersivePaintingsNH.json` 与 `mixins.ImmersivePaintingsNH.refmap.json`。
+- 已根据实机反馈修复：放置实体 DataWatcher id 冲突、右键无法交互（1.7.10 `canBeCollidedWith`
+  兼作准星拾取判定）、上传分片超过 32k 断线。渲染朝向、GUI 各页签、图片上传链路仍建议继续回归。
