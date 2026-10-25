@@ -38,15 +38,15 @@ public class ImmersivePaintingEntity extends Entity {
     private static final byte EVENT_WOBBLE = 22;
 
     // DataWatcher ids, identical on both sides.
-    // Entity itself uses id 0 for the shared entity flags, so the painting data starts at 1.
-    private static final int DATA_MOTIVE = 1;
-    private static final int DATA_FRAME = 2;
-    private static final int DATA_MATERIAL = 3;
-    private static final int DATA_WIDTH = 4;
-    private static final int DATA_HEIGHT = 5;
-    private static final int DATA_DEPTH = 6;
-    private static final int DATA_DIRECTION = 7;
-    private static final int DATA_ROTATION = 8;
+    // Entity reserves ids 0 (flags) and 1 (air), so the painting data starts at 2.
+    private static final int DATA_MOTIVE = 2;
+    private static final int DATA_FRAME = 3;
+    private static final int DATA_MATERIAL = 4;
+    private static final int DATA_WIDTH = 5;
+    private static final int DATA_HEIGHT = 6;
+    private static final int DATA_DEPTH = 7;
+    private static final int DATA_DIRECTION = 8;
+    private static final int DATA_ROTATION = 9;
 
     private static final String NONE = Main.DOMAIN + ":none";
 
