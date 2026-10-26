@@ -1,6 +1,0 @@
-// 1.7.10 Forge's JarDiscoverer cannot parse Java 21+ class files inside META-INF/versions/,
-// so emit a plain Java 8 jar instead of a multi-release jar.
-tasks.withType(xyz.wagyourtail.jvmdg.gradle.task.DowngradeJar).configureEach {
-    multiReleaseOriginal.set(false)
-    multiReleaseVersions.set([])
-}
