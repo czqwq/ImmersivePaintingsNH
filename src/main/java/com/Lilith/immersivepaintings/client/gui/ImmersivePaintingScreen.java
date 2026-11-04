@@ -1436,7 +1436,7 @@ public class ImmersivePaintingScreen extends GuiScreen {
     /** Reads a local file or URL, without applying any painting specific processing. */
     private BufferedImage readImage(String path) {
         try (InputStream stream = isRemote(path) ? openUrlStream(path) : new FileInputStream(resolveFile(path))) {
-            return javax.imageio.ImageIO.read(stream);
+            return ImageManipulations.readImage(stream);
         } catch (IOException e) {
             Main.LOGGER.error("Failed to load image {}", path, e);
         }

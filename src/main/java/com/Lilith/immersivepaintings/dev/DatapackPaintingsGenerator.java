@@ -109,7 +109,7 @@ public class DatapackPaintingsGenerator {
         try (FileInputStream stream = new FileInputStream(
             java.nio.file.Paths.get(BASE, path)
                 .toFile())) {
-            return ImageIO.read(stream);
+            return ImageManipulations.readImage(stream);
         }
     }
 }

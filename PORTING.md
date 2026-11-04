@@ -137,10 +137,24 @@ stub），Java 8~21 运行时均可加载，且 Forge 能正常发现 mod。代�
 另外图片路径输入做了归一化：去掉首尾引号、全角冒号/反斜杠、`file://` 前缀、Windows 盘符前的多余
 `/`；相对路径会再尝试相对游戏目录解析。
 
+## ImageIO 解码器选择（JPG 导入模糊问题）
+
+`ImageIO.read(...)` 总是使用**注册顺序里第一个**声称能解码该数据的 `ImageReader`。GTNH 整合包中的
+`ysmu`（Yes Steve Model Unofficial）通过 `META-INF/services/javax.imageio.spi.ImageReaderSpi` 注册了
+自己的 JPEG 解码器（`rip.ysm.imagestream.jpeg.JpegImageReader`），并且排在 JDK 解码器之前，导致：
+同一张图 JPG 导入时被 ysmu 解码成模糊 + 彩色噪点的画面，而转存成 PNG 后（ysmu 未注册 PNG 解码器）
+又恢复正常。
+
+修复：`ImageManipulations` 统一了图片解码入口（`readImage`/`decode`），按优先级排序 reader——
+`com.sun.imageio.plugins.*`（JDK 内置编解码器）优先，第三方 reader 仅在 JDK 无对应解码器时使用；
+单个 reader 解码失败时再按顺序回退下一个。GUI 导入、URL 导入、截图缩略图、客户端缓存、上传校验、
+datapack 生成器全部走该入口。注意：修复前已经上传的画作存的是错误解码后的图片，需要删除并重新上传。
+
 ## 验证
 
 - `./gradlew build` 通过（含 Spotless、Checkstyle、JVM Downgrader、Mixin refmap/reobf）。
 - 产物 `build/libs/ImmersivePaintingsNH-*.jar` 已确认：无 `META-INF/versions/*`、类文件 major version 52、
   含 `mixins.ImmersivePaintingsNH.json` 与 `mixins.ImmersivePaintingsNH.refmap.json`。
 - 已根据实机反馈修复：放置实体 DataWatcher id 冲突、右键无法交互（1.7.10 `canBeCollidedWith`
-  兼作准星拾取判定）、上传分片超过 32k 断线。渲染朝向、GUI 各页签、图片上传链路仍建议继续回归。
+  兼作准星拾取判定）、上传分片超过 32k 断线、整合包内第三方 JPEG 解码器导致 JPG 导入模糊。
+  渲染朝向、GUI 各页签、图片上传链路仍建议继续回归。

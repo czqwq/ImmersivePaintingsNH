@@ -6,8 +6,12 @@ import java.awt.image.ColorModel;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 
 import javax.imageio.ImageIO;
 import javax.imageio.ImageReader;
@@ -24,24 +28,60 @@ public class ImageManipulations {
         void accept(byte[] data, int segment, int totalSegments);
     }
 
+    /** Reads a user supplied image stream, without applying any painting specific processing. */
+    public static BufferedImage readImage(InputStream stream) throws IOException {
+        return decode(Cache.readAll(stream));
+    }
+
     public static BufferedImage decode(byte[] bytes) throws IOException {
-        return ImageIO.read(new ByteArrayInputStream(bytes));
+        return decode(bytes, Integer.MAX_VALUE, Integer.MAX_VALUE);
     }
 
     public static BufferedImage decode(byte[] bytes, int maxWidth, int maxHeight) throws IOException {
-        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
-            Iterator<ImageReader> readers = ImageIO.getImageReaders(input);
-            if (!readers.hasNext()) return null;
+        List<ImageReader> readers = findReaders(bytes);
+        if (readers.isEmpty()) return null;
 
-            ImageReader reader = readers.next();
-            try {
+        Exception failure = null;
+        for (ImageReader reader : readers) {
+            try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+                if (input == null) return null;
                 reader.setInput(input, true, true);
                 if (reader.getWidth(0) > maxWidth || reader.getHeight(0) > maxHeight) return null;
                 return reader.read(0);
+            } catch (Exception e) {
+                if (failure == null) failure = e;
             } finally {
                 reader.dispose();
             }
         }
+
+        if (failure instanceof IOException) throw (IOException) failure;
+        if (failure != null) throw new IOException(failure);
+        return null;
+    }
+
+    private static List<ImageReader> findReaders(byte[] bytes) throws IOException {
+        List<ImageReader> readers = new ArrayList<>();
+        try (ImageInputStream input = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (input == null) return readers;
+            for (Iterator<ImageReader> iterator = ImageIO.getImageReaders(input); iterator.hasNext();) {
+                readers.add(iterator.next());
+            }
+        }
+        readers.sort(Comparator.comparingInt(ImageManipulations::readerPriority));
+        return readers;
+    }
+
+    /**
+     * Prefer the JDK codecs over third party ImageIO plugins. Some mods register their own readers
+     * (the GTNH mod "ysmu", for example, ships a JPEG decoder which turns photos into blurry,
+     * colour speckled output) and {@link ImageIO#read} silently uses whichever reader is registered
+     * first, which makes the same image decode differently depending on the installed mods.
+     */
+    private static int readerPriority(ImageReader reader) {
+        return reader.getClass()
+            .getName()
+            .startsWith("com.sun.imageio.plugins.") ? 0 : 1;
     }
 
     public static byte[] encode(BufferedImage image) throws IOException {
