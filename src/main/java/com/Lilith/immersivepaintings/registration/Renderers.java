@@ -3,6 +3,7 @@ package com.Lilith.immersivepaintings.registration;
 import net.minecraft.client.renderer.entity.Render;
 
 import com.Lilith.immersivepaintings.client.render.ImmersivePaintingEntityRenderer;
+import com.Lilith.immersivepaintings.entity.ImmersiveAdminPaintingEntity;
 import com.Lilith.immersivepaintings.entity.ImmersiveGlowGraffitiEntity;
 import com.Lilith.immersivepaintings.entity.ImmersiveGlowPaintingEntity;
 import com.Lilith.immersivepaintings.entity.ImmersiveGraffitiEntity;
@@ -21,5 +22,6 @@ public class Renderers {
         RenderingRegistry.registerEntityRenderingHandler(ImmersiveGlowPaintingEntity.class, renderer);
         RenderingRegistry.registerEntityRenderingHandler(ImmersiveGraffitiEntity.class, renderer);
         RenderingRegistry.registerEntityRenderingHandler(ImmersiveGlowGraffitiEntity.class, renderer);
+        RenderingRegistry.registerEntityRenderingHandler(ImmersiveAdminPaintingEntity.class, renderer);
     }
 }

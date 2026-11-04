@@ -24,6 +24,17 @@ public class CommonConfig {
     public int packetSize = 64 * 1024;
     public int packetSplitInterval = 250;
 
+    /**
+     * Entity tracking range in blocks, i.e. how far away a player still receives the painting entity.
+     *
+     * <p>
+     * Paintings are tracked entities, so a player outside this range never gets the spawn packet and the painting
+     * simply does not exist on their client. 160 blocks is the distance the server already streams chunks at by
+     * default (vanilla {@code view-distance=10} chunks), so raising the value to the view distance costs almost
+     * nothing while allowing paintings to be seen from the far end of the loaded area.
+     */
+    public int paintingTrackingRange = 160;
+
     public void load(Configuration configuration) {
         String general = "common.general";
         testIfSpaceEmpty = configuration
@@ -80,5 +91,15 @@ public class CommonConfig {
             "Size of an image packet chunk in bytes, larger chunks are safe because the payload limit is patched.");
         packetSplitInterval = configuration
             .getInt("packetSplitInterval", advanced, packetSplitInterval, 1, 10000, "Paintings per sync packet.");
+        paintingTrackingRange = configuration.getInt(
+            "paintingTrackingRange",
+            advanced,
+            paintingTrackingRange,
+            16,
+            512,
+            "Distance in blocks a player still receives painting entities from. A player outside this range never "
+                + "receives the entity spawn packet, so distant paintings disappear. 160 = 10 chunks (vanilla server "
+                + "view-distance default), 128 = 8 chunks (vanilla client render distance default). Keep it at or below "
+                + "view distance * 16. Server side only, needs a restart.");
     }
 }

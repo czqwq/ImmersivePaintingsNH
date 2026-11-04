@@ -54,6 +54,36 @@ Minecraft **1.7.10** Forge 版的 [Immersive Paintings](https://github.com/Luke1
 
 关掉这个开关即回到“所有图片都从服务器拉”的旧行为。离开世界时日志会汇总本次会话省下的张数与流量。
 
+### 画作同步距离（`common.advanced.paintingTrackingRange`）
+
+画作是实体（`EntityTracker`），服务端只把实体发给**玩家已加载区块内**的玩家，超出追踪范围时连生成包都不发，
+客户端上根本没有这个实体，于是画作看起来“凭空消失”。旧版本这个追踪范围写死成 10 格，现在提成配置项：
+
+- 单位是**格**，默认 `160`（= 10 区块，原版服务端 `view-distance` 默认值），可选 16–512；
+- 原版客户端默认渲染视距是 8 区块 = `128`，服务端默认 `view-distance` 是 10 区块 = `160`，
+  取 160 可覆盖服务端已经加载的整片区域；服务端 view-distance 调低/调高时同步调整即可；
+- 服务端读取，注册实体时生效，改完需要重启；画作是静态实体，只会多发一个生成包，成本可忽略。
+
+### 管理员画框（`admin_painting`）
+
+OP 专用的画框物品，贴图 `assets/immersivepaintingsnh/textures/items/admin_painting.png`，**没有配方**，
+用 `/give <玩家> ImmersivePaintingsNH:admin_painting` 获取（创造模式物品栏里也能拿到，但拿得到不等于放得下）：
+
+| 操作 | 非 OP | OP（权限等级 2） |
+| --- | --- | --- |
+| 放置 | 不放，聊天栏红字「权限不足」 | 正常放置 |
+| 右键开编辑器改设置 | 不开，聊天栏红字「权限不足」 | 打开编辑器 |
+| 左键打掉 | 不掉，聊天栏红字「权限不足」 | 两下击碎，掉落物品本身 |
+
+- 判定全部在**服务端**：物品的 `onItemUse`、实体的 `interactFirst` / `attackEntityFrom`，以及
+  `PaintingEditPayload` 里的编辑包校验。改客户端绕过 GUI 直接发编辑包也会被拒；
+- 提示走原版聊天：服务端发 `ChatComponentTranslation`（`immersivepaintingsnh.error.admin_only`），
+  只传翻译 key，客户端用自己的语言渲染（en_US `Insufficient permission!` / zh_CN `权限不足`），
+  每个玩家 1 秒内最多提示一次（左键连点不会刷屏）；
+- **悬浮**：实体重写了 `survives()` 恒为 true，不检查支撑方块、也不检查空间是否被占，
+  拆掉背后的墙画框不会掉落，一直留在原地；
+- 新实体 `admin_painting` 复用普通画的渲染器与同步范围（`common.advanced.paintingTrackingRange`）。
+
 ## 1.7.10 差异
 
 | 1.21 能力 | 1.7.10 处理 |

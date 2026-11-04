@@ -451,6 +451,11 @@ public class ImmersivePaintingEntity extends Entity {
         return false;
     }
 
+    /** Whether only operators may open the editor or break this painting, see ImmersiveAdminPaintingEntity. */
+    public boolean isAdminOnly() {
+        return false;
+    }
+
     public int getDepthOffset() {
         return dataWatcher.getWatchableObjectInt(DATA_DEPTH);
     }

@@ -78,6 +78,11 @@ public class PaintingEditPayload implements ImmersivePayload {
             if (!(entity instanceof ImmersivePaintingEntity)) return;
             ImmersivePaintingEntity painting = (ImmersivePaintingEntity) entity;
             if (!player.capabilities.allowEdit || player.getDistanceSqToEntity(painting) > 64.0D) return;
+            // Operator only paintings must stay untouched even for clients that send the payload by hand.
+            if (painting.isAdminOnly() && !Permissions.isAdmin(player)) {
+                Main.LOGGER.warn("Player {} tried to edit an operator only painting", player);
+                return;
+            }
 
             values.forEach((option, value) -> {
                 switch (option) {
