@@ -33,6 +33,8 @@ import com.Lilith.immersivepaintings.util.Permissions;
 public class ImmersivePaintingEntity extends Entity {
 
     public static final int MAX_DEPTH_OFFSET = 16;
+    public static final int MIN_PAINTING_SIZE = 1;
+    public static final int MAX_PAINTING_SIZE = 16;
 
     private static final int HIT_WINDOW_TICKS = 10;
     private static final byte EVENT_WOBBLE = 22;
@@ -336,7 +338,8 @@ public class ImmersivePaintingEntity extends Entity {
                     config.minPaintingResolution,
                     config.maxPaintingResolution,
                     config.showOtherPlayersPaintings,
-                    config.uploadPermissionLevel));
+                    config.uploadPermissionLevel,
+                    Permissions.has(player, 2)));
         }
         return true;
     }
@@ -403,6 +406,8 @@ public class ImmersivePaintingEntity extends Entity {
         nbt.setByte("Facing", (byte) hangingDirection);
         nbt.setInteger("Rotation", rotation);
         nbt.setInteger("DepthOffset", getDepthOffset());
+        nbt.setInteger("Width", getPaintingWidth());
+        nbt.setInteger("Height", getPaintingHeight());
         nbt.setInteger("TileX", tileX);
         nbt.setInteger("TileY", tileY);
         nbt.setInteger("TileZ", tileZ);
@@ -419,6 +424,11 @@ public class ImmersivePaintingEntity extends Entity {
         tileZ = nbt.getInteger("TileZ");
         setDepthOffset(nbt.getInteger("DepthOffset"));
         setMotiveString(nbt.getString("Motive"));
+
+        // The stored size wins over the painting's default, so paintings keep the size they were resized to.
+        if (nbt.hasKey("Width") && nbt.hasKey("Height")) {
+            setPaintingSize(nbt.getInteger("Width"), nbt.getInteger("Height"));
+        }
         dataWatcher.updateObject(DATA_DIRECTION, (byte) hangingDirection);
         dataWatcher.updateObject(DATA_ROTATION, rotation);
         updateRotationFromDirection();
@@ -458,8 +468,38 @@ public class ImmersivePaintingEntity extends Entity {
     }
 
     private void setPaintingSize(int width, int height) {
-        dataWatcher.updateObject(DATA_WIDTH, Math.max(1, width));
-        dataWatcher.updateObject(DATA_HEIGHT, Math.max(1, height));
+        applyPaintingSize(clampSize(width), clampSize(height));
+    }
+
+    /**
+     * Resizes this specific painting, so the same image can be hung at different sizes. The centre of the
+     * painting stays where it is; a size that does not fit is rejected and the previous size is kept.
+     */
+    public boolean resize(int width, int height) {
+        int newWidth = clampSize(width);
+        int newHeight = clampSize(height);
+        int oldWidth = getPaintingWidth();
+        int oldHeight = getPaintingHeight();
+
+        if (newWidth == oldWidth && newHeight == oldHeight) return true;
+
+        applyPaintingSize(newWidth, newHeight);
+        if (!worldObj.isRemote && !survives()) {
+            applyPaintingSize(oldWidth, oldHeight);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void applyPaintingSize(int width, int height) {
+        dataWatcher.updateObject(DATA_WIDTH, width);
+        dataWatcher.updateObject(DATA_HEIGHT, height);
+        recalculateBoundingBox();
+    }
+
+    public static int clampSize(int size) {
+        return Math.max(MIN_PAINTING_SIZE, Math.min(MAX_PAINTING_SIZE, size));
     }
 
     public ResourceLocation getMotive() {

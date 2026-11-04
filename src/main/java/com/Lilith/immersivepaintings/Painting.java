@@ -11,13 +11,18 @@ import net.minecraft.util.ResourceLocation;
  * replacing the Mojang codecs.
  */
 public record Painting(int version, int width, int height, int resolution, String name, String author, UUID authorUUID,
-    Type type, EnumSet<Flag> flags, String hash) {
+    Type type, EnumSet<Flag> flags, String hash, String contentHash) {
 
     public static final ResourceLocation DEFAULT_IDENTIFIER = Main.locate("textures/block/frame/canvas.png");
 
     public Painting(int width, int height, int resolution, String name, String author, UUID authorUUID, Type type,
         EnumSet<Flag> flags, String hash) {
-        this(1, width, height, resolution, name, author, authorUUID, type, flags, hash);
+        this(1, width, height, resolution, name, author, authorUUID, type, flags, hash, "");
+    }
+
+    public Painting(int width, int height, int resolution, String name, String author, UUID authorUUID, Type type,
+        EnumSet<Flag> flags, String hash, String contentHash) {
+        this(1, width, height, resolution, name, author, authorUUID, type, flags, hash, contentHash);
     }
 
     public ResourceLocation location() {
@@ -40,7 +45,34 @@ public record Painting(int version, int width, int height, int resolution, Strin
     }
 
     public Painting withHash(String newHash) {
-        return new Painting(width, height, resolution, name, author, authorUUID, type, flags, newHash);
+        return new Painting(
+            version,
+            width,
+            height,
+            resolution,
+            name,
+            author,
+            authorUUID,
+            type,
+            flags,
+            newHash,
+            contentHash);
+    }
+
+    /** {@code contentHash} is the MD5 of the exact PNG bytes the server serves for this painting. */
+    public Painting withContentHash(String newContentHash) {
+        return new Painting(
+            version,
+            width,
+            height,
+            resolution,
+            name,
+            author,
+            authorUUID,
+            type,
+            flags,
+            hash,
+            newContentHash);
     }
 
     public NBTTagCompound toNBT() {
@@ -55,6 +87,7 @@ public record Painting(int version, int width, int height, int resolution, Strin
         nbt.setString("type", type.name());
         nbt.setLong("flags", Flag.toBits(flags));
         nbt.setString("hash", hash);
+        nbt.setString("contentHash", contentHash);
         return nbt;
     }
 
@@ -83,7 +116,8 @@ public record Painting(int version, int width, int height, int resolution, Strin
             uuid,
             type,
             Flag.fromBits(nbt.getLong("flags")),
-            nbt.getString("hash"));
+            nbt.getString("hash"),
+            nbt.getString("contentHash"));
     }
 
     public enum Type {

@@ -6,6 +6,8 @@ import java.util.Optional;
 
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.entity.player.EntityPlayerMP;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ResourceLocation;
 
 import com.Lilith.immersivepaintings.Main;
@@ -13,6 +15,7 @@ import com.Lilith.immersivepaintings.Painting;
 import com.Lilith.immersivepaintings.ServerPaintingManager;
 import com.Lilith.immersivepaintings.entity.ImmersivePaintingEntity;
 import com.Lilith.immersivepaintings.network.payload.ImmersivePayload;
+import com.Lilith.immersivepaintings.util.Permissions;
 import com.Lilith.immersivepaintings.util.ScheduledTasks;
 
 import cpw.mods.fml.common.network.ByteBufUtils;
@@ -110,6 +113,9 @@ public class PaintingEditPayload implements ImmersivePayload {
                             // keep the previous value
                         }
                         break;
+                    case SIZE:
+                        resizePainting(serverPlayer, painting, value);
+                        break;
                     case DELETE:
                         break;
                     default:
@@ -119,12 +125,53 @@ public class PaintingEditPayload implements ImmersivePayload {
         });
     }
 
+    /**
+     * Resizes one placed painting. The size is a per entity property, so the same image can hang at several
+     * sizes; only the author of the painting and server operators may change it.
+     */
+    private static void resizePainting(EntityPlayerMP player, ImmersivePaintingEntity painting, String value) {
+        int separator = value.indexOf(',');
+        if (separator <= 0) return;
+
+        int width;
+        int height;
+        try {
+            width = Integer.parseInt(
+                value.substring(0, separator)
+                    .trim());
+            height = Integer.parseInt(
+                value.substring(separator + 1)
+                    .trim());
+        } catch (NumberFormatException ignored) {
+            return;
+        }
+
+        MinecraftServer server = player.mcServer;
+        if (server == null) return;
+
+        Optional<Painting> record = ServerPaintingManager.getPainting(server, painting.getMotive());
+        if (!record.isPresent()) return;
+
+        boolean owner = record.get()
+            .authorUUID()
+            .equals(player.getUniqueID());
+        if (!owner && !Permissions.has(player, 2)) {
+            Main.LOGGER.warn("Player {} tried to resize a painting they do not own", player);
+            return;
+        }
+
+        if (!painting.resize(width, height)) {
+            Main.LOGGER.debug("Painting at {} does not fit at {}x{}", painting, width, height);
+        }
+    }
+
     public enum Option {
         MOTIVE,
         FRAME,
         MATERIAL,
         DELETE,
-        DEPTH_OFFSET
+        DEPTH_OFFSET,
+        SIZE
     }
 
     public static class Handler implements IMessageHandler<PaintingEditPayload, IMessage> {

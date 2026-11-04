@@ -2,10 +2,8 @@ package com.Lilith.immersivepaintings;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.function.Consumer;
 
 import net.minecraft.entity.player.EntityPlayerMP;
@@ -17,6 +15,7 @@ import org.jetbrains.annotations.Nullable;
 import com.Lilith.immersivepaintings.network.NetworkHandler;
 import com.Lilith.immersivepaintings.network.payload.s2c.PaintingSyncPayload;
 import com.Lilith.immersivepaintings.registration.Configs;
+import com.Lilith.immersivepaintings.util.Hashes;
 import com.Lilith.immersivepaintings.util.ImageManipulations;
 import com.Lilith.immersivepaintings.util.Permissions;
 
@@ -97,19 +96,18 @@ public class PaintingRegistration {
 
         try {
             byte[] encodedImage = ImageManipulations.encode(image);
-            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            String contentHash = Hashes.md5Hex(encodedImage);
+            MessageDigest md5 = Hashes.md5();
             md5.update(encodedImage);
             addSettingsToHash(md5, painting);
-            String hash = String.format("%032x", new BigInteger(1, md5.digest()));
-            painting = painting.withHash(hash);
+            String hash = Hashes.hex(md5);
+            painting = painting.withHash(hash)
+                .withContentHash(contentHash);
             ResourceLocation identifier = painting.location();
 
             ServerPaintingManager.registerPainting(server, identifier, painting, image);
             NetworkHandler.sendToAllClients(server, new PaintingSyncPayload(identifier, painting));
             return identifier;
-        } catch (NoSuchAlgorithmException e) {
-            Main.LOGGER.error("failed to hash painting {}", painting.location(), e);
-            onError.accept("hash_failed");
         } catch (IOException e) {
             Main.LOGGER.error("failed to encode painting {}", painting.location(), e);
             onError.accept("hash_failed");

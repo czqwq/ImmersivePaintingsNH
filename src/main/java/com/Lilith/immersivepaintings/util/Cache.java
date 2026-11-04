@@ -62,6 +62,24 @@ public abstract class Cache<K, V> {
         return getFile(key) != null;
     }
 
+    /** Size of the persisted entry in bytes, or 0 when it is not stored on disk. */
+    public long fileSize(K key) {
+        Path path = getPath(key);
+        if (path == null) return 0L;
+
+        try {
+            return Files.exists(path) ? Files.size(path) : 0L;
+        } catch (IOException e) {
+            Main.LOGGER.error("failed reading the size of cached file {}", path, e);
+            return 0L;
+        }
+    }
+
+    /** Absolute path of the cached entry, or {@code null} when the key would escape the cache directory. */
+    public Path pathOf(K key) {
+        return getPath(key);
+    }
+
     public Optional<V> get(K key) {
         return get(key, true);
     }

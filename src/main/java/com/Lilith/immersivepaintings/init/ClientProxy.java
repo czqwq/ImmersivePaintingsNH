@@ -29,6 +29,8 @@ import cpw.mods.fml.relauncher.SideOnly;
 @SideOnly(Side.CLIENT)
 public class ClientProxy extends CommonProxy {
 
+    private boolean hadWorld;
+
     @Override
     public void init(FMLInitializationEvent event) {
         super.init(event);
@@ -43,9 +45,16 @@ public class ClientProxy extends CommonProxy {
 
     @SubscribeEvent
     public void onClientTick(TickEvent.ClientTickEvent event) {
-        if (event.phase == TickEvent.Phase.END) {
-            ScheduledTasks.tickClient();
-            LazyNetworkManager.tickClient();
+        if (event.phase != TickEvent.Phase.END) return;
+
+        ScheduledTasks.tickClient();
+        LazyNetworkManager.tickClient();
+
+        boolean hasWorld = Minecraft.getMinecraft().theWorld != null;
+        if (hasWorld != hadWorld) {
+            // Leaving a world ends the session the local painting saving summary is reported for.
+            if (!hasWorld) ClientPaintingManager.logLocalResolutionSummary();
+            hadWorld = hasWorld;
         }
     }
 
@@ -62,7 +71,7 @@ public class ClientProxy extends CommonProxy {
 
     @Override
     public void openPaintingGui(int entityId, int minResolution, int maxResolution, boolean showOtherPlayersPaintings,
-        int uploadPermissionLevel) {
+        int uploadPermissionLevel, boolean operator) {
         Minecraft.getMinecraft()
             .displayGuiScreen(
                 new ImmersivePaintingScreen(
@@ -70,7 +79,8 @@ public class ClientProxy extends CommonProxy {
                     minResolution,
                     maxResolution,
                     showOtherPlayersPaintings,
-                    uploadPermissionLevel));
+                    uploadPermissionLevel,
+                    operator));
     }
 
     @Override

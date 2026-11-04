@@ -6,6 +6,7 @@ import net.minecraftforge.common.config.Configuration;
 public class ClientConfig {
 
     public boolean loadPaintings = true;
+    public boolean preferLocalPaintings = true;
     public boolean showOtherPlayersPaintings = true;
     public boolean cacheOtherPlayersPaintings = false;
     public boolean showNSFWPaintings = true;
@@ -23,6 +24,13 @@ public class ClientConfig {
         String general = "client.general";
         loadPaintings = configuration
             .getBoolean("loadPaintings", general, loadPaintings, "Download and display paintings on remote servers.");
+        preferLocalPaintings = configuration.getBoolean(
+            "preferLocalPaintings",
+            general,
+            preferLocalPaintings,
+            "Read paintings that are already stored on this computer (bundled painting pack and the local cache) "
+                + "before downloading them from the server. Paintings that are missing or do not match the "
+                + "server's hash are still downloaded.");
         showOtherPlayersPaintings = configuration.getBoolean(
             "showOtherPlayersPaintings",
             general,

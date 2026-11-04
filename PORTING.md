@@ -150,6 +150,47 @@ stub），Java 8~21 运行时均可加载，且 Forge 能正常发现 mod。代�
 单个 reader 解码失败时再按顺序回退下一个。GUI 导入、URL 导入、截图缩略图、客户端缓存、上传校验、
 datapack 生成器全部走该入口。注意：修复前已经上传的画作存的是错误解码后的图片，需要删除并重新上传。
 
+## 本地优先读取（客户端不再重复下载本机已有的画作）
+
+上游客户端拿到画作元数据后一律发 `ImageRequestPayload` 逐张拉图，多人服务器上即使整合包已经
+把画作包装在客户端也要重新下载。移植版加了 `client.general.preferLocalPaintings`（默认开）。
+
+| 位置 | 作用 |
+| --- | --- |
+| `util/Hashes` | MD5 helper，`PaintingRegistration`、画作包索引与缓存戳共用 |
+| `Painting.contentHash` | 新增 NBT 字段，服务端持有的 PNG 字节的 MD5（datapack 在 `PaintingsLoader` 加载时算，玩家上传在注册时算） |
+| `resources/LocalPaintings` | 客户端本机画作包索引：`hash → (contentHash, png 字节)`，来源是 jar 内置包 + `config/ImmersivePaintingsNH/paintings/`（仅客户端、仅开关打开时建立） |
+| `ClientPaintingManager` | `setImageRequest`（发包唯一出口）先查本地：可信缓存 → 画作包（校验 contentHash）→ 才发 `ImageRequestPayload` |
+
+要点：
+
+- 本地读取全部异步（`service` 线程池）+ 懒加载，只在真正需要某个尺寸时才解码，不卡进服与 GUI。
+- 画作包命中前比对 `contentHash`，不一致（客户端文件被改 / 两端包版本不同）就丢弃并回落网络；
+  此时也不使用缓存，避免显示更旧的图。
+- 缓存目录 `ImmersivePaintingsNH_cache/` 的 datapack 条目旁边有 `<xxx>.contenthash` 戳，记录该批文件
+  对应的内容哈希；与服务端不一致就整批删除（含 half/quarter/eighth/thumbnail），防止包更新后一直读旧图。
+  玩家上传的画作标识符本身就是内容哈希，不需要戳。
+- datapack 画作下载后**无条件**写盘（`shouldCachePainting` 里放行），不受 `cacheOtherPlayersPaintings`
+  影响；该选项仍然只管玩家上传的画作。由本机画作包解码出来的图不重复写盘（`persist=false`），
+  避免 18MB 画作包在磁盘上再存一份。
+- 失败（文件缺失、解码失败、hash 不符）会清掉 `requested` 标记并重发网络请求，行为与旧版一致。
+- 离开世界时 `ClientPaintingManager.logLocalResolutionSummary()` 打一次 INFO 汇总（省掉的张数与字节数）。
+
+## 已放置画作的尺寸修改（实体级）
+
+上游把宽高存在画作记录里，只有上传时能定。移植版把尺寸变成**实体级属性**，同一张图可以挂成不同大小：
+
+| 位置 | 作用 |
+| --- | --- |
+| `ImmersivePaintingEntity.resize(w, h)` | 1~16 夹取，改完用 `survives()` 校验，放不下就回滚（保持原尺寸、中心不动） |
+| 实体 NBT `Width`/`Height` | 尺寸落盘；旧存档没有这两个键时回落到画作记录里的默认值 |
+| `PaintingEditPayload.Option.SIZE` | 值 `"w,h"`；服务端校验 `画作作者 == 玩家` 或 `Permissions.has(player, 2)`（真 OP） |
+| `OpenGuiPayload.operator` | 服务端把真 OP 标记发给 GUI，界面上只有作者/OP 能看到宽高 ± 按钮 |
+| `ImmersivePaintingScreen` | FRAME 页底部两行 `-/+`（宽度、高度），客户端不预测结果，等 DataWatcher 同步 |
+
+注意：`DataWatcher.updateObject` 在值未变时不会触发 `func_145781_i`，所以回滚路径也能正确同步；
+画作包（DATAPACK）的 `authorUUID` 是随机生成的，实际上只有 OP 能改它们的尺寸。
+
 ## 验证
 
 - `./gradlew build` 通过（含 Spotless、Checkstyle、JVM Downgrader、Mixin refmap/reobf）。

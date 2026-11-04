@@ -67,6 +67,8 @@ public class ImmersivePaintingScreen extends GuiScreen {
     final int maxResolution;
     final boolean showOtherPlayersPaintings;
     final int uploadPermissionLevel;
+    /** True when the server reported this player as an operator, which allows resizing any painting. */
+    final boolean operator;
 
     public final ImmersivePaintingEntity entity;
 
@@ -82,6 +84,10 @@ public class ImmersivePaintingScreen extends GuiScreen {
     private GuiButton pageWidget;
     private GuiButton decreaseDepthButton;
     private GuiButton increaseDepthButton;
+    private GuiButton decreaseWidthButton;
+    private GuiButton increaseWidthButton;
+    private GuiButton decreaseHeightButton;
+    private GuiButton increaseHeightButton;
 
     private final Map<ResourceLocation, PaintingWidget> paintingWidgets = new HashMap<>();
     private final Map<GuiButton, List<String>> tooltips = new HashMap<>();
@@ -120,13 +126,14 @@ public class ImmersivePaintingScreen extends GuiScreen {
     private final ExecutorService service = Executors.newSingleThreadExecutor();
 
     public ImmersivePaintingScreen(int entityId, int minResolution, int maxResolution,
-        boolean showOtherPlayersPaintings, int uploadPermissionLevel) {
+        boolean showOtherPlayersPaintings, int uploadPermissionLevel, boolean operator) {
         super();
 
         this.minResolution = minResolution;
         this.maxResolution = maxResolution;
         this.showOtherPlayersPaintings = showOtherPlayersPaintings && Configs.CLIENT.showOtherPlayersPaintings;
         this.uploadPermissionLevel = uploadPermissionLevel;
+        this.operator = operator;
 
         Minecraft minecraft = Minecraft.getMinecraft();
         if (minecraft.theWorld != null
@@ -177,6 +184,15 @@ public class ImmersivePaintingScreen extends GuiScreen {
         if (page == Page.FRAME) {
             decreaseDepthButton.enabled = entity.getDepthOffset() > -ImmersivePaintingEntity.MAX_DEPTH_OFFSET;
             increaseDepthButton.enabled = entity.getDepthOffset() < ImmersivePaintingEntity.MAX_DEPTH_OFFSET;
+
+            if (increaseWidthButton != null) {
+                int paintingWidth = entity.getPaintingWidth();
+                int paintingHeight = entity.getPaintingHeight();
+                decreaseWidthButton.enabled = paintingWidth > ImmersivePaintingEntity.MIN_PAINTING_SIZE;
+                increaseWidthButton.enabled = paintingWidth < ImmersivePaintingEntity.MAX_PAINTING_SIZE;
+                decreaseHeightButton.enabled = paintingHeight > ImmersivePaintingEntity.MIN_PAINTING_SIZE;
+                increaseHeightButton.enabled = paintingHeight < ImmersivePaintingEntity.MAX_PAINTING_SIZE;
+            }
         }
 
         switch (page) {
@@ -262,6 +278,25 @@ public class ImmersivePaintingScreen extends GuiScreen {
                     decreaseDepthButton.xPosition + 60,
                     decreaseDepthButton.yPosition + 6,
                     0xFFFFFF);
+
+                if (increaseWidthButton != null) {
+                    drawCenteredString(
+                        fontRendererObj,
+                        StatCollector.translateToLocalFormatted(
+                            "immersivepaintingsnh.gui.size_width",
+                            entity.getPaintingWidth()),
+                        decreaseWidthButton.xPosition + 70,
+                        decreaseWidthButton.yPosition + 6,
+                        0xFFFFFF);
+                    drawCenteredString(
+                        fontRendererObj,
+                        StatCollector.translateToLocalFormatted(
+                            "immersivepaintingsnh.gui.size_height",
+                            entity.getPaintingHeight()),
+                        decreaseHeightButton.xPosition + 70,
+                        decreaseHeightButton.yPosition + 6,
+                        0xFFFFFF);
+                }
                 break;
             case EDIT:
                 ClientPaintingManager.getPainting(selectedPainting)
@@ -579,6 +614,10 @@ public class ImmersivePaintingScreen extends GuiScreen {
         searchField = null;
         widthFilterField = null;
         heightFilterField = null;
+        decreaseWidthButton = null;
+        increaseWidthButton = null;
+        decreaseHeightButton = null;
+        increaseHeightButton = null;
 
         if (page != Page.CREATE) {
             List<Page> buttons = new LinkedList<>();
@@ -1093,6 +1132,18 @@ public class ImmersivePaintingScreen extends GuiScreen {
         tooltip(decreaseDepthButton, "immersivepaintingsnh.gui.tooltip.depth_in");
         increaseDepthButton = addButton(">", depthX + 100, depthY, 20, 20, () -> changeDepthOffset(1));
         tooltip(increaseDepthButton, "immersivepaintingsnh.gui.tooltip.depth_out");
+
+        if (canResize()) {
+            int sizeY = height / 2 + 95;
+            decreaseWidthButton = addButton("-", width / 2 - 190, sizeY, 20, 20, () -> changeSize(-1, 0));
+            tooltip(decreaseWidthButton, "immersivepaintingsnh.gui.tooltip.size_narrower");
+            increaseWidthButton = addButton("+", width / 2 - 90, sizeY, 20, 20, () -> changeSize(1, 0));
+            tooltip(increaseWidthButton, "immersivepaintingsnh.gui.tooltip.size_wider");
+            decreaseHeightButton = addButton("-", width / 2 + 40, sizeY, 20, 20, () -> changeSize(0, -1));
+            tooltip(decreaseHeightButton, "immersivepaintingsnh.gui.tooltip.size_shorter");
+            increaseHeightButton = addButton("+", width / 2 + 140, sizeY, 20, 20, () -> changeSize(0, 1));
+            tooltip(increaseHeightButton, "immersivepaintingsnh.gui.tooltip.size_taller");
+        }
     }
 
     private void onGuiClosedAction() {
@@ -1361,6 +1412,35 @@ public class ImmersivePaintingScreen extends GuiScreen {
         Map<PaintingEditPayload.Option, String> options = new HashMap<>();
         options.put(PaintingEditPayload.Option.DEPTH_OFFSET, Integer.toString(entity.getDepthOffset()));
         NetworkHandler.Client.sendToServer(new PaintingEditPayload(entity.getEntityId(), options));
+    }
+
+    /**
+     * Asks the server to resize this painting. The client does not predict the result, the synced entity size
+     * is what the buttons and the label read, so a rejected resize simply keeps the old size.
+     */
+    private void changeSize(int widthDelta, int heightDelta) {
+        if (entity == null) return;
+
+        int width = ImmersivePaintingEntity.clampSize(entity.getPaintingWidth() + widthDelta);
+        int height = ImmersivePaintingEntity.clampSize(entity.getPaintingHeight() + heightDelta);
+        if (width == entity.getPaintingWidth() && height == entity.getPaintingHeight()) return;
+
+        Map<PaintingEditPayload.Option, String> options = new HashMap<>();
+        options.put(PaintingEditPayload.Option.SIZE, width + "," + height);
+        NetworkHandler.Client.sendToServer(new PaintingEditPayload(entity.getEntityId(), options));
+    }
+
+    /** Resizing is limited to the author of the painting and to operators. */
+    private boolean canResize() {
+        if (entity == null) return false;
+        if (operator) return true;
+        if (mc.thePlayer == null) return false;
+
+        return ClientPaintingManager.getPainting(entity.getMotive())
+            .map(
+                painting -> painting.authorUUID()
+                    .equals(mc.thePlayer.getUniqueID()))
+            .orElse(false);
     }
 
     private boolean isOp() {

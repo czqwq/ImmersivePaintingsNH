@@ -19,6 +19,7 @@ import com.Lilith.immersivepaintings.Painting;
 import com.Lilith.immersivepaintings.ServerPaintingManager;
 import com.Lilith.immersivepaintings.registration.Configs;
 import com.Lilith.immersivepaintings.util.Cache;
+import com.Lilith.immersivepaintings.util.Hashes;
 import com.Lilith.immersivepaintings.util.Json;
 import com.Lilith.immersivepaintings.util.ModResources;
 import com.google.gson.Gson;
@@ -63,6 +64,11 @@ public class PaintingsLoader {
 
         ServerPaintingManager.setDatapackPaintings(paintings);
         Main.LOGGER.info("Loaded {} bundled painting images", paintings.size());
+
+        int local = LocalPaintings.size();
+        if (local > 0) {
+            Main.LOGGER.info("Indexed {} painting pack images for local loading", local);
+        }
     }
 
     private static void loadEntry(Map<ResourceLocation, Map.Entry<Painting, byte[]>> paintings, String path,
@@ -79,7 +85,14 @@ public class PaintingsLoader {
                 .getAsJsonObject();
 
             boolean bundled = !path.startsWith("external/");
-            if (bundled && !Configs.COMMON.enableBundledPaintings) return;
+
+            // The client keeps its own copy of the pack (jar and config directory) and can serve paintings
+            // from it, so index it even when the "enableBundledPaintings" switch is off: that switch only
+            // decides what the server offers.
+            boolean indexLocally = LocalPaintings.enabled();
+            if (bundled && !Configs.COMMON.enableBundledPaintings && !indexLocally) return;
+
+            String hash = path.replaceAll("[^a-zA-Z\\d]", "");
 
             byte[] image;
             try (InputStream imageStream = imageSupplier.open()) {
@@ -87,13 +100,16 @@ public class PaintingsLoader {
                 image = Cache.readAll(imageStream);
             }
 
+            String contentHash = Hashes.md5Hex(image);
+            if (indexLocally) LocalPaintings.put(hash, contentHash, image);
+            if (bundled && !Configs.COMMON.enableBundledPaintings) return;
+
             int width = Json.getInt(json, "width", 1);
             int height = Json.getInt(json, "height", 1);
             int resolution = Json.getInt(json, "resolution", 32);
             String name = Json.getString(json, "name", "unknown");
             String author = Json.getString(json, "author", "unknown");
             boolean graffiti = Json.getBoolean(json, "graffiti", false);
-            String hash = path.replaceAll("[^a-zA-Z\\d]", "");
 
             EnumSet<Painting.Flag> flags = EnumSet.noneOf(Painting.Flag.class);
             if (graffiti) flags.add(Painting.Flag.GRAFFITI);
@@ -107,7 +123,8 @@ public class PaintingsLoader {
                 UUID.randomUUID(),
                 Painting.Type.DATAPACK,
                 flags,
-                hash);
+                hash,
+                contentHash);
             paintings.put(painting.location(), Map.entry(painting, image));
         } catch (Exception e) {
             Main.LOGGER.error("Couldn't load painting {} ({})", path, e);

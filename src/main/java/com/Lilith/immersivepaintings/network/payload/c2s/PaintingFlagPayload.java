@@ -93,7 +93,8 @@ public class PaintingFlagPayload implements ImmersivePayload {
                 painting.authorUUID(),
                 painting.type(),
                 flags,
-                painting.hash());
+                painting.hash(),
+                painting.contentHash());
             ServerPaintingManager.updatePainting(serverPlayer.mcServer, id, updated);
             NetworkHandler.sendToAllClients(serverPlayer.mcServer, new PaintingSyncPayload(id, updated));
         });

@@ -82,7 +82,7 @@ public class CommonProxy {
     // ------------------------------------------------------------------
 
     public void openPaintingGui(int entityId, int minResolution, int maxResolution, boolean showOtherPlayersPaintings,
-        int uploadPermissionLevel) {}
+        int uploadPermissionLevel, boolean operator) {}
 
     public void refreshPaintingScreen() {}
 

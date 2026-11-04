@@ -7,8 +7,10 @@ Minecraft **1.7.10** Forge 版的 [Immersive Paintings](https://github.com/Luke1
 
 - 4 种物品：绘画、发光绘画、涂鸦、发光涂鸦
 - 完整 GUI 编辑器：选图、裁剪/缩放、抖动/减色、像素画模式、画框材质、深度偏移
+- 已放置的画可以随时改尺寸（作者本人或 OP），同一张图能挂成不同大小
 - 数据驱动画框（OBJ 模型 + 材质纹理）与内置画作包
 - 服务器端图片存储、分片网络同步、客户端缩略图/LOD 缓存
+- 本地优先：画作已在本机（内置画作包或 `ImmersivePaintingsNH_cache/`）时直接解码，不再从服务器下载
 - 隐藏 / NSFW 标记、按作者批量删除、`/immersivepaintingsnh delete <author>` 管理员命令
 - 服务端/客户端 Forge 配置
 
@@ -32,6 +34,25 @@ Minecraft **1.7.10** Forge 版的 [Immersive Paintings](https://github.com/Luke1
 3. 编辑器“New”页支持：输入本地文件路径、输入图片 URL、从 `screenshots/` 选择截图。
 4. 服务器可把额外画作包放到 `config/ImmersivePaintingsNH/paintings/`（成对的 `.json` + `.png`，格式同内置包）。
 5. 配置文件：`config/ImmersivePaintingsNH.cfg`。
+
+### 本地优先读取（`client.general.preferLocalPaintings`）
+
+客户端在发出 `ImageRequestPayload` 之前，先在**本机**找同一张画，命中就直接解码注册纹理（异步、按需，
+不卡进服），完全不经过网络，`maxPacketsPerSecond` 队列里也不再排这些图：
+
+1. `ImmersivePaintingsNH_cache/`（游戏根目录）里已下载过的文件；
+2. `config/ImmersivePaintingsNH/paintings/` 的画作包（客户端也放一份时生效，整合包场景收益最直接）；
+3. jar 内置画作包（`assets/immersivepaintingsnh/paintings/`）。
+
+画作包（2/3）命中前都会比对同步元数据里的 `contentHash`（服务端 PNG 字节的 MD5）：客户端文件被改动、
+或两端画作包版本不一致时直接丢弃本地副本并回落成正常下载，不会显示与服务端不一致的画面。
+缓存（1）用旁边的 `<xxx>.contenthash` 戳记录上次下载对应的内容哈希，画作包更新后旧缓存会被丢弃重下，
+不会一直显示旧图。
+
+另外，画作包内容对所有客户端都一样，所以 datapack 画作下载后**总是**写进缓存目录，
+不受 `cacheOtherPlayersPaintings`（那是限制“别的玩家上传的画作”的）影响。
+
+关掉这个开关即回到“所有图片都从服务器拉”的旧行为。离开世界时日志会汇总本次会话省下的张数与流量。
 
 ## 1.7.10 差异
 

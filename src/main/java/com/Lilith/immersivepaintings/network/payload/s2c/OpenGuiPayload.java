@@ -19,17 +19,19 @@ public class OpenGuiPayload implements ImmersivePayload {
     private int maxResolution;
     private boolean showOtherPlayersPaintings;
     private int uploadPermissionLevel;
+    private boolean operator;
 
     public OpenGuiPayload() {}
 
     public OpenGuiPayload(GuiType guiType, int entityId, int minResolution, int maxResolution,
-        boolean showOtherPlayersPaintings, int uploadPermissionLevel) {
+        boolean showOtherPlayersPaintings, int uploadPermissionLevel, boolean operator) {
         this.guiType = guiType;
         this.entityId = entityId;
         this.minResolution = minResolution;
         this.maxResolution = maxResolution;
         this.showOtherPlayersPaintings = showOtherPlayersPaintings;
         this.uploadPermissionLevel = uploadPermissionLevel;
+        this.operator = operator;
     }
 
     public GuiType guiType() {
@@ -56,6 +58,10 @@ public class OpenGuiPayload implements ImmersivePayload {
         return uploadPermissionLevel;
     }
 
+    public boolean operator() {
+        return operator;
+    }
+
     @Override
     public void fromBytes(ByteBuf buf) {
         guiType = GuiType.values()[buf.readByte()];
@@ -64,6 +70,7 @@ public class OpenGuiPayload implements ImmersivePayload {
         maxResolution = buf.readInt();
         showOtherPlayersPaintings = buf.readBoolean();
         uploadPermissionLevel = buf.readInt();
+        operator = buf.readBoolean();
     }
 
     @Override
@@ -74,6 +81,7 @@ public class OpenGuiPayload implements ImmersivePayload {
         buf.writeInt(maxResolution);
         buf.writeBoolean(showOtherPlayersPaintings);
         buf.writeInt(uploadPermissionLevel);
+        buf.writeBoolean(operator);
     }
 
     @Override
@@ -84,10 +92,11 @@ public class OpenGuiPayload implements ImmersivePayload {
         final int max = maxResolution;
         final boolean showOthers = showOtherPlayersPaintings;
         final int permissionLevel = uploadPermissionLevel;
+        final boolean op = operator;
 
         runner.run(() -> {
             if (type == GuiType.EDITOR) {
-                ImmersivePaintings.proxy.openPaintingGui(id, min, max, showOthers, permissionLevel);
+                ImmersivePaintings.proxy.openPaintingGui(id, min, max, showOthers, permissionLevel, op);
             }
         });
     }
