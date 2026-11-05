@@ -82,6 +82,15 @@ OP 专用的画框物品，贴图 `assets/immersivepaintingsnh/textures/items/ad
   每个玩家 1 秒内最多提示一次（左键连点不会刷屏）；
 - **悬浮**：实体重写了 `survives()` 恒为 true，不检查支撑方块、也不检查空间是否被占，
   拆掉背后的墙画框不会掉落，一直留在原地；
+- **只认 OP 的直接左键**：`attackEntityFrom` 只放行“伤害来源实体就是 OP 本人且是直接命中”的攻击，
+  爆炸、箭矢/投掷物、魔法、火焰、生物攻击全部返回 false（Thaumcraft 的 Primal 法杖就是靠
+  `EntityPrimalOrb` 的 `createExplosion(null, …)` 把画炸下来的，爆炸伤害源 `getEntity() == null`，
+  旧实现会落到父类的“两下击碎”逻辑里；现在连 OP 自己放的 TNT 都炸不掉）；
+- **不可推动**：爆炸会无条件给范围内实体 `motionX/Y/Z` 加冲量（跟伤害结果无关），所以
+  `moveEntity` / `addVelocity` 也被重写成空实现，画框不会被炸飞或推着走；
+- **拦截直接删除**：服务端 `setDead()` 只接受本实体自己 OP 破坏路径的调用，其他模组/效果直接
+  `entity.setDead()`、`world.removeEntity(entity)` 或清理命令都会被忽略，并打一条 warn 日志；
+  客户端侧保留正常 `setDead`，否则销毁包（离开同步范围）会留下幽灵画框；
 - 新实体 `admin_painting` 复用普通画的渲染器与同步范围（`common.advanced.paintingTrackingRange`）。
 
 ## 1.7.10 差异
